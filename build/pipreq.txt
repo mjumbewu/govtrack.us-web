@@ -27,4 +27,6 @@ xml_diff
 diff_match_patch_python
 python-twitter
 sparkpost
-
+dj_database_url
+django-cache-url
+dj-haystack-url
