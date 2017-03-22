@@ -74,13 +74,14 @@
 	      <ul class="nav navbar-nav">
 	        <li><a href="/">Home</a></li>
 	        <li class="dropdown">
-	          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Browse <span class="caret"></span></a>
+	          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Congress <span class="caret"></span></a>
 	          <ul class="dropdown-menu">
 				<li><a href="/congress/members">Members of Congress</a></li>
 				<li><a href="/congress/bills">Bills and Resolutions</a></li>
 				<li><a href="/congress/votes">Voting Records</a></li>
 				<li><a href="/congress/committees">Committees</a></li>
-	            <!--<li role="separator" class="divider"></li>-->
+	            <li role="separator" class="divider"></li>
+				<li><a href="/how-laws-are-made">How Laws Are Made</a></li>
 	          </ul>
 	        </li>
 			<li class="dropdown">
@@ -100,7 +101,7 @@
 					<li><a href="/accounts/docket">Your Docket</a></li>
 				</ul>
 			</li>
-			<li><a href="/about">About</a></li>
+			<li><a href="/about">About Us</a></li>
 			<li><a href="/developers">Data/API</a></li>
 	      </ul>
 	      <ul class="nav navbar-nav navbar-right">
@@ -136,7 +137,7 @@
 				<div>An email update to you bounced. We have turned off your email updates. Please contact the website administrator to reactivate email updates.</div>
 			</div>
 			<div style="clear: both"> </div>
-	{% elif pagename != "blog_template" and 1 %}
+	{% elif pagename != "blog_template" %}
 			<div class="ex"><a href="#" onclick="return hide_site_news()">X</a></div>
 			{% include "site-news-banner.html" %}
 	<script>
@@ -197,7 +198,7 @@
 			<div class="container">
 			<div class="row">
 
-				<nav class="col-sm-3 col-md-2">
+				<nav class="col-xs-6 col-sm-3 col-md-2">
 					<h4><span>site</span> Menu</h4>
 					<ul>
 						<li><a href="/">Home</a></li>
@@ -215,7 +216,7 @@
 					</ul>
 				</nav>
 
-				<section class="col-sm-2 social">
+				<section class="col-xs-6 col-sm-2 social">
 					<h4><span>follow</span> GovTrack</h4>
 					<ul>
 						<li><a href="https://www.facebook.com/govtrack/"><i class="fa fa-facebook fa-fw"></i><span>Facebook</span></a></li>
@@ -226,7 +227,7 @@
 					</ul>
 				</section>
 
-				<section class="col-md-offset-1 col-sm-6">
+				<section class="col-xs-12 col-md-offset-1 col-sm-6">
 					<p>Launched in 2004, GovTrack helps everyone learn about and track the activities of the United States Congress. This is a project of <a href="http://www.civicimpulse.com">Civic Impulse, LLC</a>. GovTrack.us is not a government website.</p>
 
 					<p><a href="/about">About the Site</a> | <a href="/contact">Contact Us</a></p>

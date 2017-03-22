@@ -8,6 +8,14 @@
 {% block head %}
   {% include "person/mapbox-head.html" %}
   <style>
+    .spanbullets span:after {
+      display: inline;
+      content: " · ";
+    }
+    .spanbullets span:last-child:after {
+      display: none;
+      content: "";
+    }
   	#map {
   		width: 100%;
   		height: 80vh;
@@ -45,7 +53,7 @@
       		alert("That location does not seem to be in a United States Congressional District.");
       		return;
       	}
-      	if (district.number != "00") {
+      	if (district.number != "00" || 1) {
           // URLs don't use zero-padding
           var path = "/congress/members/" + district.state + "/" + parseInt(district.number);
           var fragment = "#q=" + encodeURIComponent(q) + "&marker_lng=" + pt[0] + "&marker_lat=" + pt[1];
@@ -99,6 +107,8 @@
   var q = parse_qs(window.location.hash.substring(1));
   if (q.address)
     do_address(q.address);
+  else if (q.my_location)
+  	do_by_current_location();
   if (q.q)
     $('#user-address').val(q.q);
   if (q.marker_lat)
@@ -124,70 +134,100 @@
 {% block body %}
 	{% if not state %}
 		<h1>Congressional Districts Map</h1>
+	{% elif district == 0 %}
+		<h1>{{statename}}&rsquo;s At-Large Congressional District</h1>
 	{% else %}
 		<h1>{{statename}}&rsquo;s {{district|ordinalhtml}} Congressional District</h1>
 	{% endif %}
 
-<form class="form-inline" onsubmit="do_address(); return false;" style="margin: 2em 0">
+<div style="margin: 2em 0">
+<form class="form-inline" onsubmit="do_address(); return false;">
   <div class="form-group">
     <label for="user-address" class="sr-only">Address</label>
     <input type="text" class="form-control" id="user-address" placeholder="Enter an address in the United States">
   </div>
   <button type="submit" class="btn btn-primary">Find District</button>
-  <button class="btn btn-default" onclick="do_by_current_location(); return false;">Use My Location</button>
 </form>
+<div style="margin: .5em"><a href="#" onclick="do_by_current_location(); return false;" style="text-decoration: none"><i class="fa fa-map-marker" aria-hidden="true"></i> I&rsquo;m at home, use my phone/computer&rsquo;s location</a></div>
+</div>
 
-		{% if state %}
-		<div class="panel panel-success" style="margin: 1em 0">
-		<div class="panel-heading">
-			{% if not request.GET.q %}
-				Who represents this district?
-			{% else %}
-				That location is in {{statename}}&rsquo;s {{district|ordinalhtml}} congressional district which is represented by...
-			{% endif %}
-		</div>
-		<div class="panel-body">
-			<h3 style="margin: 0 0 .5em 0">Senators</h3>
-			{% if state == "DC" %}
-				<p>The District of Columbia does not elect senators.</p>
-			{% elif stateapp == "T" %}
-				<p>{% if state == "VI" %}The {% endif %}{{statename}} is a U.S. territory and so does not have any senators.</p>
-			{% else %}
-				<p>
-					{% for rep in senators %}
-						{% if rep %}
-							<a href="{{rep.get_absolute_url}}">{{rep.name_no_district}}</a>
-						{% else %}
-							<em>Vacant</em>
-						{% endif %}
-						{% if not forloop.last %}
-							and
-						{% endif %}
-					{% endfor %}
-				</p>
-			{% endif %}
-			
-			<h3 style="margin: 1em 0 .5em 0">Representative</h3>
+<div class="row">
 
-			<div>
-				{% for dist, rep in reps %}
-					<div style="margin-bottom: .5em">
-						{% if not district %}
-						{% if reps|length > 1 or dist > 0 %}
-						<a href="/congress/members/{{state}}/{{dist}}" title="View District Map" class="plain"><strong>{{dist|ordinalhtml}}</strong> </a> &mdash;
+	{% if state %}
+		<div class="col-md-6">
+		
+			{% if request.GET.q %}
+				<p>That location is in {{statename}}&rsquo;s {{district|ordinalhtml}} congressional district which is represented by...</p>
+			{% endif %}
+
+			{% for props, rep in legislators %}
+				{% if props.first_senator %}
+					<h2 style="margin-top: 0"><span>Senators</span></h2>
+					<p>Each state elects two senators to the United States Senate for staggered 6-year terms. Senators represent the entire state. {{statename}}&rsquo;s senators are:</p>
+				{% endif %}
+				{% if props.first_representative %}
+					<h2><span>Representative</span></h2>
+
+					{% if stateapp != "T" %}
+						<p>The United States is divided into 435 congressional districts, each with a population of about 710,000 individuals. Each district elects a representative to the U.S. House of Representatives for a two-year term. Representatives are also called congressmen/congresswomen.</p>
+					{% elif state == "DC" %}
+						<p>The District of Columbia (DC) is the nation&rsquo;s capital. Although DC has a larger population than some states, the District is not one of the fifty states and so has no senators or representatives in Congress.</p>
+
+						<p>Instead, the District of Columbia sends a <b>delegate</b> to the House of Representatives with essentially no voting privileges. Delegates have a marginal role in Congress and their constituents are not represented in Congress in the same manner as most citizens.</p>
+					{% else %}
+						<p>{% if state == "VI" or state == "MP" %}The {% endif %}{{statename}} is a territory of the United States. Because it is not a state, it has no senators or representatives in Congress.</p>
+
+						<p>Instead, it sends a <b>delegate</b> to the House of Representatives{% if state == "PR" %}, called the <b>Resident Commissioner</b>,{% endif %} with essentially no voting privileges. Delegates have a marginal role in Congress and their constituents are not represented in Congress in the same manner as most citizens.</p>
+					{% endif %}
+
+				{% endif %}
+
+				<div class="row" style="margin-bottom: 1.5em;">
+				<div class="col-sm-3" style="padding-right: 0; padding-bottom: 1em;">
+					{% if rep.has_photo %}
+						<img src="{{rep.get_photo_url}}" alt="Photo" class="img-responsive" />
+					{% else %}
+						<div style="border: 1px solid black; width: 100px; height: 120px;" class="img-responsive"> </div>
+					{% endif %}
+				</div>
+				<div class="col-sm-9">
+					{% if rep %}
+						<div style="margin-bottom: .5em">
+						  <a href="{{rep.get_absolute_url}}" style="font-weight: bold; font-size: 110%; text-decoration: none; color: inherit;">
+							{{rep.name_no_details}}
+						  </a>
+						</div>
+
+						{% with rep.current_role as role %}
+						<div>{{role.get_description}}</div>
+	            		<div>Since {{role.logical_dates.0|date}} (Next Election in {{role.next_election_year}})</div>
+						<div style="margin-bottom: .5em;">{{role.party}}</div>
+
+						<div class="spanbullets" style="margin-bottom: .75em;">
+						{% if rep.twitterid %}<span><a href="https://twitter.com/@{{rep.twitterid}}">@{{rep.twitterid}}</a></span>{% endif %}
+						{% if role.website %}<span><a href="{{role.website}}">Official Website <i class="fa  fa-external-link"></i></a></span>{% endif %}
+						{% if role.phone %}<span><nobr><a href="tel:+1-{{role.phone}}">{{role.phone}}</a></nobr></span>{% endif %}
+						</div>
+
+						<div style="margin-bottom: .5em;"><a href="{{rep.get_absolute_url}}" class="btn btn-success">View Legislative Profile &raquo;</a></div>
+
+						{% if role.role_type == 2%}
+							<div style="margin-top: .5em; line-height: 126%; font-size: 85%; color: #555; font-style: italic;">Check the map <span class="visible-xs-inline visible-sm-inline">below</span> to make sure we&rsquo;ve located your address accurately.</div>
 						{% endif %}
-						{% endif %}
-						{% if rep %}
-							<a href="{{rep.get_absolute_url}}">{{rep.name_no_district}}</a>
-						{% else %}
-							<em>Vacant</em>
-						{% endif %}
-					</div>
-				{% endfor %}
-			</div>
-		</div>
-		</div>
-		{% endif %}
+						{% endwith %}
+
+					{% else %}
+						<em>Vacant</em>
+					{% endif %}
+				</div>
+				</div>
+			{% endfor %}
+
+		</div> <!-- /col -->
+		<div class="col-md-6">
+	{% else %}
+		<div class="col-xs-12">
+	{% endif %}
 
 	{% if not state or state == "FL" or state == "VA" or state == "NC" %}
 	{% include "person/redistricting-notes.html" %}
@@ -207,8 +247,9 @@ src="https://www.govtrack.us/congress/members/embed/mapframe?{% if state %}state
 
 		</div>
 	</div>
-</div><!-- /search-members -->
 
+</div> <!-- /col -->
+</div> <!-- /row -->
 {% include "ad_footer_leaderboard.html" %}
 
 {% endblock %}

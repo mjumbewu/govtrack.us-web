@@ -279,7 +279,7 @@ def vote_thumbnail_image_map(vote):
 	# We only have an SVG for House votes for certain Congresses.
 	if vote.chamber != CongressChamber.house:
 		raise Http404()
-	if vote.congress not in (112, 113, 114):
+	if vote.congress not in (112, 113, 114, 115):
 		raise Http404()
 
 	# Load the SVG.
@@ -334,7 +334,7 @@ def vote_thumbnail_image_seating_diagram(vote, is_thumbnail):
 	elif re.match(r"Veto Sustained", vote.result):
 		vote_result_2 = "Sustained"
 	else:
-		vote_result_2 = re.sub("^(Bill|Amendment|Joint Resolution|Resolution|Conference Report|Nomination|Motion to \S+|Motion) ", "", vote.result)
+		vote_result_2 = re.sub("^(Bill|Amendment|(Joint |Concurrent )?Resolution|Conference Report|Nomination|Motion to \S+|Motion) ", "", vote.result)
 	if vote_result_2 == "unknown": vote_result_2 = ""
 	vote_date = vote.created.strftime("%x") if vote.created.year > 1900 else vote.created.isoformat().split("T")[0]
 	vote_citation = vote.get_chamber_display() + " Vote #" + str(vote.number) + " -- " + vote_date
@@ -603,3 +603,125 @@ class sitemap_archive(django.contrib.sitemaps.Sitemap):
 @render_to('vote/presidential_candidates.html')
 def presidential_candidates(request):
 	return { }
+
+@anonymous_view
+@render_to('vote/comparison.html')
+def vote_comparison_table(request, table_id, table_slug):
+	# Validate URL.
+	if int(table_id) != 1:
+		raise Http404()
+	if table_slug != "trump-nominations":
+		return HttpResponseRedirect("/congress/votes/compare/1/trump-nominations")
+
+	# Get votes to show.
+	votes = [
+		("115-2017/s29", { "title": "Mattis—Defense", "longtitle":  "James Mattis to be Secretary of Defense" }),
+		("115-2017/s30", { "title": "Kelly—Homeland Security", "longtitle": "John Kelly to be Secretary of Homeland Security" }),
+		("115-2017/s32", { "title": "Pompeo—CIA", "longtitle": "Mike Pompeo to be Director of the Central Intelligence Agency" }),
+		("115-2017/s33", { "title": "Haley—UN Ambassador", "longtitle": "Nikki Haley to be the Ambassador to the United Nations" }),
+		("115-2017/s35", { "title": "Chao—Transportation", "longtitle": "Elaine Chao to be Secretary of Transportation" }),
+		("115-2017/s36", { "title": "Tillerson—State", "longtitle": "Rex Tillerson to be Secretary of State" }),
+		("115-2017/s54", { "title": "DeVos—Education", "longtitle": "Elisabeth DeVos to be Secretary of Education" }),
+		("115-2017/s59", { "title": "Sessions—Attorney General", "longtitle": "Jeff Sessions to be Attorney General" }),
+		("115-2017/s61", { "title": "Price—HHS", "longtitle": "Thomas Price to be Secretary of Health and Human Services" }),
+		("115-2017/s63", { "title": "Mnuchin—Treasury", "longtitle": "Steven Mnuchin to be Secretary of the Treasury" }),
+		("115-2017/s64", { "title": "Shulkin—VA", "longtitle": "David Shulkin to be Secretary of Veterans Affairs" }),
+		("115-2017/s65", { "title": "McMahon—SBA", "longtitle": "Linda McMahon to be Administrator of the Small Business Administration" }),
+		("115-2017/s68", { "title": "Mulvaney—OMB", "longtitle": "Mick Mulvaney to be Director of the Office of Management and Budget" }),
+		("115-2017/s71", { "title": "Pruitt—EPA", "longtitle": "Scott Pruitt to be Administrator of the Environmental Protection Agency" }),
+	]
+	voters = None
+
+	# Fetch votes.
+	def fetch_vote(id, extra):
+		# Fetch vote.
+		if isinstance(id, int):
+			vote = Vote.objects.get(id=id)
+		else:
+			import re
+			m = re.match(r"^(\d+)-(\w+)/([hs])(\d+)$", id)
+			if not m:
+				raise Http404(id)
+			congress, session, chamber, number = m.groups()
+			try:
+				vote = load_vote(congress, session, chamber, number)
+			except Http404:
+				raise ValueError("Vote ID is not valid: " + id)
+
+		# Add additional user-supplied fields.
+		for k, v in extra.items():
+			setattr(vote, k, v)
+
+		# Return
+		return vote
+	votes = [fetch_vote(id, extra) for id, extra in votes]
+
+	# Compute totals by party.
+	party_totals = { }
+	for i, vote in enumerate(votes):
+		totals = vote.totals()
+		for party, party_total in zip(totals['parties'], totals['party_counts']):
+			pt = party_totals.setdefault(party, {
+				"party": party,
+				"total_votes": 0,
+				"votes": [None] * len(votes), # if this party didn't occur in prev votes, make sure we have an empty record
+			})
+			pt["total_votes"] += party_total["total"]
+			pt["votes"][i] = party_total
+	party_totals = sorted(party_totals.values(), key = lambda value : -value['total_votes'])
+	party_sort_order = [party_total["party"] for party_total in party_totals]
+
+	# Is more than one chamber in involved here?
+	more_than_one_chamber = (len(set(v.chamber for v in votes)) > 1)
+
+	# Pull voters.
+	voters = { }
+	for i, vote in enumerate(votes):
+		for voter in vote.get_voters():
+			v = voters.setdefault(voter.person_id, {
+				"person": voter.person,
+				"total_plus": 0,
+				"total_votes": 0,
+				"votes": [None for _ in votes],
+			})
+
+			v["votes"][i] = voter
+			if voter.option.key == "+":
+				v["total_plus"] += 1
+			if voter.option.key not in ("0", "P"):
+				v["total_votes"] += 1
+
+			# Add name info at the moment of the vote.
+			from person.name import get_person_name
+			voter.person.role = voter.person_role
+			voter.person.role.party = voter.party # party at this moment
+			v["votes"][i].person_name = get_person_name(voter.person, firstname_position='after', show_district=True, show_title=False, show_type=more_than_one_chamber, show_party=False)
+
+	# Choose one name & party & state-district (for sort).
+	for voter in voters.values():
+		names = set(v.person_name for v in voter["votes"] if v is not None)
+		if len(names) == 1:
+			voter["person_name"] = list(names)[0]
+		else:
+			voter["person_name"] = get_person_name(voter["person"], firstname_position='after', show_district=False, show_title=False, show_type=more_than_one_chamber, show_party=False)
+
+		parties = set(v.party for v in voter["votes"] if v is not None)
+		if len(parties) == 1:
+			voter["party"] = list(parties)[0]
+			voter["party_order"] = party_sort_order.index(voter["party"])
+
+		roles = set((v.person_role.state, str(v.person_role.role_type), str(v.person_role.senator_rank), ("%02d" % v.person_role.district if v.person_role.district else "")) for v in voter["votes"] if v is not None)
+		if len(roles) == 1:
+			voter["state_district"] = "-".join(list(roles)[0])
+
+	# Default sort order.
+	voters = sorted(voters.values(), key = lambda value : value['person_name'])
+
+	return {
+		"title": "Key Trump Nominations",
+		"description": "Senate votes on key Trump nominations.",
+		"votes": votes,
+		"party_totals": party_totals,
+		"voters": voters,
+		"col_width_pct": int(round(100/(len(votes)+1))),
+	}

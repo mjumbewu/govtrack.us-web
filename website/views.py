@@ -36,9 +36,13 @@ def index(request):
         events_feed = Feed.get_events_for([fn for fn in ("misc:activebills2", "misc:billsummaries", "misc:allvotes") if Feed.objects.filter(feedname=fn).exists()], 6)
         cache.set("frontpage_events_feed", events_feed, 60*15) # 15 minutes
 
+    from bill.views import subject_choices
+    bill_subject_areas = subject_choices()
+
     return {
         'events': events_feed,
         'blog': blog_feed,
+        'bill_subject_areas': bill_subject_areas,
         }
       
 @anonymous_view
@@ -121,7 +125,12 @@ def do_site_search(q, allow_redirect=False, request=None):
             if us.statenames[s].lower().startswith(q.lower())
             ], key=lambda p : p["label"])})
     
+    # search committees -- name must contain all of the words in the
+    # search query (e.g. "rules committee" should match "committee on rules")
     from committee.models import Committee
+    committees_qs = Committee.objects.filter(obsolete=False)
+    for word in q.split(" "):
+        committees_qs = committees_qs.filter(name__icontains=word)
     results.append({
         "title": "Congressional Committees",
         "href": "/congress/committees",
@@ -132,7 +141,7 @@ def do_site_search(q, allow_redirect=False, request=None):
              "feed": c.get_feed(),
              "obj": c,
              "secondary": c.committee != None}
-            for c in Committee.objects.filter(name__icontains=q, obsolete=False)
+            for c in committees_qs
             ], key=lambda c : c["label"])
         })
        

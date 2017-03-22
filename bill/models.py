@@ -54,7 +54,7 @@ class BillTerm(models.Model):
     def __unicode__(self):
         return self.name
     def __repr__(self):
-        return "<BillTerm: %s:%s>" % (TermType.by_value(self.term_type).label, self.name)
+        return "<BillTerm: %s:%s>" % (TermType.by_value(self.term_type).label, self.name.encode("utf8"))
 
     class Meta:
         unique_together = ('name', 'term_type')
@@ -163,6 +163,8 @@ class Bill(models.Model):
     # additional data that is pulled from other sources
     docs_house_gov_postdate = models.DateTimeField(blank=True, null=True, help_text="The date on which the bill was posted to http://docs.house.gov (which is different from the date it was expected to be debated).")
     senate_floor_schedule_postdate = models.DateTimeField(blank=True, null=True, help_text="The date on which the bill was posted on the Senate Floor Schedule (which is different from the date it was expected to be debated).")
+    scheduled_consideration_date = models.DateTimeField(blank=True, null=True, help_text="The date on which the bill is expected to be considered on the floor for the most recent of docs_house_gov_postdate and senate_floor_schedule_postdate, and if for docs.house.gov it is the week that this is the Monday of.")
+
     #statutescite = models.CharField(max_length=16, blank=True, null=True, help_text="For enacted laws, a normalized U.S. Statutes at Large citation. Available only for years in which the Statutes at Large has already been published.")
     text_incorporation = JSONField(default=[], blank=True, null=True, help_text="What enacted bills have provisions of this bill been incorporated into?")
 
@@ -295,6 +297,7 @@ class Bill(models.Model):
         "is_alive": "is_alive",
         "noun": "noun",
         "related_bills": "get_related_bills_api",
+        "current_chamber": "current_chamber",
     }
     api_example_id = 76416
     api_example_list = { "sort": "-introduced_date" }
@@ -342,7 +345,7 @@ class Bill(models.Model):
         if status in (BillStatus.introduced, BillStatus.referred, BillStatus.reported):
             return self.originating_chamber.lower()
         elif hasattr(status, 'next_action_in'):
-            return stats.next_action_in
+            return status.next_action_in
         else:
             # no pending action
             return None
