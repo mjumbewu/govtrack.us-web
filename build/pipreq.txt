@@ -32,3 +32,4 @@ sparkpost
 dj_database_url
 django-cache-url
 dj-haystack-url
+user-agents

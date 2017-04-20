@@ -81,7 +81,8 @@
 				<li><a href="/congress/votes">Voting Records</a></li>
 				<li><a href="/congress/committees">Committees</a></li>
 	            <li role="separator" class="divider"></li>
-				<li><a href="/how-laws-are-made">How Laws Are Made</a></li>
+				<li><a href="/how-a-bill-becomes-a-law">How does a bill become a law?</a></li>
+				<li><a href="/what-is-the-law">What is the law?</a></li>
 	          </ul>
 	        </li>
 			<li class="dropdown">
@@ -99,10 +100,19 @@
 						{% endif %}
 					{% endif %}
 					<li><a href="/accounts/docket">Your Docket</a></li>
+		            <li role="separator" class="divider"></li>
+					<li><a href="https://govtrackinsider.com">GovTrack Insider</a></li>
 				</ul>
 			</li>
-			<li><a href="/about">About Us</a></li>
-			<li><a href="/developers">Data/API</a></li>
+			<li class="dropdown">
+				<a href="/about" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">About Us <span class="caret"></span></a>
+	            <ul class="dropdown-menu">
+					<li><a href="/about">About GovTrack.us</a></li>
+					<li><a href="/about-our-data">About Our Data</a></li>
+					<li><a href="/developers">Use Our Data</a></li>
+					<li><a href="/sousveillance">What is Congress Browsing?</a></li>
+				</ul>
+			</li>
 	      </ul>
 	      <ul class="nav navbar-nav navbar-right">
 			{% block override_login %}
@@ -137,7 +147,7 @@
 				<div>An email update to you bounced. We have turned off your email updates. Please contact the website administrator to reactivate email updates.</div>
 			</div>
 			<div style="clear: both"> </div>
-	{% elif pagename != "blog_template" %}
+	{% elif 0 %}
 			<div class="ex"><a href="#" onclick="return hide_site_news()">X</a></div>
 			{% include "site-news-banner.html" %}
 	<script>
